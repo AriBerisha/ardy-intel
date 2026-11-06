@@ -10,6 +10,29 @@ ARDY is an autoregressive diffusion model designed for interactive motion genera
 
 This repo provides code, checkpoints, and demos to work with the pre-trained ARDY models introduced in the [SIGGRAPH paper](https://research.nvidia.com/labs/sil/projects/ardy/).
 
+## Intel XPU support
+
+**This fork supports Intel XPU for offline, text-conditioned motion generation.** Automatic device selection prefers CUDA when available, then Intel XPU, then CPU. The motion model and local LLM2Vec text encoder can run on separate Intel GPUs.
+
+The port has been validated on Ubuntu 24.04 with two Intel Arc Pro B70 GPUs and PyTorch 2.15.0+xpu. Install PyTorch's official XPU build before installing ARDY's core dependencies:
+
+```bash
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/xpu
+pip install -e .
+```
+
+Use `--device` for the motion model and `--text_encoder_device` for the local text encoder:
+
+```bash
+python scripts/generate.py "A person walks forward, stops, and looks back." \
+  --model soma \
+  --device xpu:0 \
+  --text_encoder_device xpu:1 \
+  --output outputs/walk
+```
+
+Omit both device options to use automatic selection. Both models can also share one XPU device. The offline generator loads the text encoder locally, so no text-encoder server is required. NVIDIA-only TensorRT support is unchanged and is not available on Intel XPU.
+
 ## Setup
 > This repo has mainly been tested on Ubuntu Linux 22.04 with RTX 4090, nvidia-driver-575, and Python 3.11.
 

@@ -1,5 +1,6 @@
 # SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
+# Modified for Intel XPU text-encoder device selection.
 """Load Ardy diffusion models from local checkpoints or Hugging Face."""
 
 from pathlib import Path
@@ -122,7 +123,7 @@ def load_text_encoder(
         url: Remote service URL. When None, falls back to the TEXT_ENCODER_URL
             env var.
         fp32: Use float32 instead of the default bfloat16.
-        device: Target device. When None, uses cuda if available else cpu.
+        device: Target device. When None, auto-selects CUDA, XPU, or CPU.
 
     Returns:
         The instantiated text encoder placed on ``device``.
@@ -151,7 +152,9 @@ def load_text_encoder(
         text_encoder = instantiate_from_dict(conf)
 
     if device is None:
-        device = "cuda" if torch.cuda.is_available() else "cpu"
+        from ardy.tools import get_default_device
+
+        device = get_default_device()
     dtype = torch.float32 if fp32 else torch.bfloat16
     return text_encoder.to(device=device, dtype=dtype)
 

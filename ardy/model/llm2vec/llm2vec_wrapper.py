@@ -1,5 +1,6 @@
 # SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
+# Modified for Intel XPU device selection.
 """LLM2Vec encoder wrapper for ARDY text conditioning."""
 
 import os
@@ -41,7 +42,9 @@ class LLM2VecEncoder:
         if env_device:
             device = env_device
         if device == "auto":
-            device = "cuda" if torch.cuda.is_available() else "cpu"
+            from ardy.tools import get_default_device
+
+            device = get_default_device()
         self._device = device
         if device is not None:
             self.model = self.model.to(device)

@@ -31,6 +31,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
+# Modified for Intel XPU device selection.
 
 import json
 import logging
@@ -316,9 +318,9 @@ class LLM2Vec(nn.Module):
             show_progress_bar: whether to show progress bars during encoding steps.
             convert_to_numpy: If true, return numpy arrays instead of torch tensors.
             convert_to_tensor: If true, return torch tensors (default).
-            device: torch backend device identifier (e.g., 'cuda', 'cpu','mps' etc.). If not specified,
-            the default is to use cuda when available, otherwise cpu. Note that only the choice of 'cuda' supports
-            multiprocessing as currently implemented.
+            device: torch backend device identifier (e.g., 'cuda', 'xpu', 'cpu', 'mps'). If not specified,
+            auto-selects CUDA, XPU, or CPU. Note that only the choice of 'cuda' supports multiprocessing
+            as currently implemented.
 
         Returns: embeddings of the sentences. Embeddings are detached and always on the CPU (see _encode implementation).
         """
@@ -329,7 +331,9 @@ class LLM2Vec(nn.Module):
             sentences = [[""] + [sentence] for sentence in sentences]
 
         if device is None:
-            device = "cuda" if torch.cuda.is_available() else "cpu"
+            from ardy.tools import get_default_device
+
+            device = get_default_device()
 
         concatenated_input_texts = []
         for sentence in sentences:

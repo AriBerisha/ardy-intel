@@ -1,5 +1,6 @@
 # SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
+# Modified for Intel XPU device selection and seeding.
 
 import inspect
 import json
@@ -227,12 +228,22 @@ def to_torch(obj, device=None, dtype=None):
     return obj
 
 
+def get_default_device() -> str:
+    if torch.cuda.is_available():
+        return "cuda:0"
+    if hasattr(torch, "xpu") and torch.xpu.is_available():
+        return "xpu:0"
+    return "cpu"
+
+
 def seed_everything(seed: int, deterministic: bool = False) -> None:
     """Seed all random number generators."""
     random.seed(seed)  # for Python random module.
     np.random.seed(seed)  # for NumPy.
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
+    if hasattr(torch, "xpu") and torch.xpu.is_available():
+        torch.xpu.manual_seed_all(seed)
     if deterministic:
         torch.backends.cudnn.deterministic = True  # for deterministic behavior.
         torch.backends.cudnn.benchmark = False  # if you want to make the behavior deterministic.

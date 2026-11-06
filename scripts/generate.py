@@ -1,5 +1,6 @@
 # SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
+# Modified for configurable motion and text-encoder devices.
 
 """Cmd line API for generating motions with Ardy.
 
@@ -19,12 +20,13 @@ import torch
 
 from ardy.constraints import load_constraints_lst
 from ardy.model import DEFAULT_MODEL, load_model
+from ardy.model.load_model import load_text_encoder
 from ardy.model.loading import get_env_var
 from ardy.model.registry import resolve_model_name
 from ardy.motion_rep.tools import length_to_mask
 from ardy.postprocess import post_process_motion
 from ardy.skeleton import SOMASkeleton30
-from ardy.tools import seed_everything, to_numpy
+from ardy.tools import get_default_device, seed_everything, to_numpy
 
 
 def parse_args():
@@ -100,6 +102,18 @@ def parse_args():
         default=None,
         help="Local dir holding released model folders. Falls back to the CHECKPOINTS_DIR env var; if neither is set the model is downloaded from Hugging Face.",
     )
+    parser.add_argument(
+        "--device",
+        type=str,
+        default=None,
+        help="Motion model device (for example xpu:0, cuda:0, or cpu). Auto-detects by default.",
+    )
+    parser.add_argument(
+        "--text_encoder_device",
+        type=str,
+        default=None,
+        help="Text encoder device. Defaults to the motion model device.",
+    )
     return parser.parse_args()
 
 
@@ -165,10 +179,11 @@ def save_motion_npz(path: str, motion_dict: dict, fps: float, text: str) -> None
 
 
 def main():
-    device = "cuda:0" if torch.cuda.is_available() else "cpu"
-    print(f"Using device: {device}")
-
     args = parse_args()
+    device = args.device or get_default_device()
+    text_encoder_device = args.text_encoder_device or device
+    print(f"Using motion device: {device}")
+    print(f"Using text encoder device: {text_encoder_device}")
 
     if args.num_samples < 1:
         raise ValueError(f"--num_samples must be >= 1, got {args.num_samples}.")
@@ -183,7 +198,8 @@ def main():
     # Load model
     checkpoints_dir = args.checkpoints_dir or get_env_var("CHECKPOINTS_DIR")
     resolved_model = resolve_model_name(args.model, checkpoints_dir=checkpoints_dir)
-    model = load_model(resolved_model, device=device, checkpoints_dir=checkpoints_dir)
+    text_encoder = load_text_encoder(mode="local", device=text_encoder_device)
+    model = load_model(resolved_model, device=device, text_encoder=text_encoder, checkpoints_dir=checkpoints_dir)
     print(f"Loaded model: {resolved_model}")
 
     fps = model.motion_rep.fps
